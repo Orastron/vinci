@@ -37,13 +37,12 @@ struct window {
 };
 
 struct vinci {
-	char    keep_running;
 	window *windows;
-	char    className[20];
+	char    className[66];
 };
 
 static uint32_t get_mouse_state(WPARAM wParam) {
-	return  (wParam & (MK_LBUTTON | MK_RBUTTON)) | ((wParam & MK_MBUTTON) >> 2);
+	return (wParam & (MK_LBUTTON | MK_RBUTTON)) | ((wParam & MK_MBUTTON) >> 2);
 }
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -52,25 +51,25 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 		return DefWindowProc(hwnd, msg, wParam, lParam);
 
 	POINTS points;
-    switch(msg)
-    {
-        case WM_LBUTTONDOWN:
-        case WM_MBUTTONDOWN:
-        case WM_RBUTTONDOWN:
-        	if (w->cbs.on_mouse_press) {
-	        	points = MAKEPOINTS(lParam);
-	        	SetCapture(hwnd);
-	        	w->cbs.on_mouse_press(w, points.x, points.y, get_mouse_state(wParam));
-	        }
+	switch(msg)
+	{
+		case WM_LBUTTONDOWN:
+		case WM_MBUTTONDOWN:
+		case WM_RBUTTONDOWN:
+		if (w->cbs.on_mouse_press) {
+			points = MAKEPOINTS(lParam);
+			SetCapture(hwnd);
+			w->cbs.on_mouse_press(w, points.x, points.y, get_mouse_state(wParam));
+		}
 			break;
 		case WM_LBUTTONUP:
-    	case WM_MBUTTONUP:
-        case WM_RBUTTONUP:
-        	if (w->cbs.on_mouse_release) {
+		case WM_MBUTTONUP:
+		case WM_RBUTTONUP:
+			if (w->cbs.on_mouse_release) {
 				points = MAKEPOINTS(lParam);
-	        	if (get_mouse_state(wParam) == 0) {
-	        		ReleaseCapture();
-	        	}
+				if (get_mouse_state(wParam) == 0) {
+					ReleaseCapture();
+				}
 				w->cbs.on_mouse_release(w, points.x, points.y, get_mouse_state(wParam));
 			}
 			break;
@@ -78,16 +77,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 			points = MAKEPOINTS(lParam);
 			if (!w->mouse_tracking) {
 				if (w->cbs.on_mouse_enter)
-	        		w->cbs.on_mouse_enter(w, points.x, points.y, 1);
+					w->cbs.on_mouse_enter(w, points.x, points.y, 1);
 				TRACKMOUSEEVENT tme;
-	            tme.cbSize = sizeof(tme);
-	            tme.hwndTrack = hwnd;
-	            tme.dwFlags = TME_HOVER | TME_LEAVE;
-	            tme.dwHoverTime = HOVER_DEFAULT;
-	            TrackMouseEvent(&tme);
-	            w->mouse_tracking = 1;
-	        }
-	        if (w->cbs.on_mouse_move)
+				tme.cbSize = sizeof(tme);
+				tme.hwndTrack = hwnd;
+				tme.dwFlags = TME_HOVER | TME_LEAVE;
+				tme.dwHoverTime = HOVER_DEFAULT;
+				TrackMouseEvent(&tme);
+				w->mouse_tracking = 1;
+			}
+			if (w->cbs.on_mouse_move)
 				w->cbs.on_mouse_move(w, points.x, points.y, get_mouse_state(wParam));
 			break;
 		case WM_MOUSELEAVE:
@@ -138,15 +137,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 				w->cbs.on_window_close(w);
 		}
 			break;
-    }
-    return DefWindowProc(hwnd, msg, wParam, lParam);
+	}
+	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
 vinci* vinci_new(void) {
 	vinci *g = (vinci*)malloc(sizeof(vinci));
 	if (!g)
 		return NULL;
-	snprintf(g->className, 20, "vinClass%p", (void*)g); // Nice random name
+	snprintf(g->className, 66, "vc%p", (void*)g); // Nice random name
 
 	WNDCLASSEX wc;
 	wc.cbSize        = sizeof(WNDCLASSEX);
@@ -165,7 +164,6 @@ vinci* vinci_new(void) {
 		free(g);
 		return NULL;
 	}
-	g->keep_running = 0;
 	g->windows = NULL;
 	return g;
 }
@@ -175,32 +173,20 @@ void vinci_destroy(vinci *g) {
 	free(g);
 }
 
-void vinci_run(vinci *g, char single) {
-	g->keep_running = 1;
+void vinci_idle(vinci *g) {
+	(void) g;
 	MSG msg;
-	while (g->keep_running) {
-		if (single) {
-			BOOL b = PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
-			if (!b)
-				break;
-		} else {
-			BOOL b = GetMessage(&msg, NULL, 0, 0);
-			if (b <= 0)
-				break;
-		}
+	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
-}
-
-void vinci_stop(vinci *g) {
-	g->keep_running = 0;
 }
 
 window* window_new(vinci *g, void* parent, uint32_t width, uint32_t height, window_cbs *cbs) {
 	window *w = (window*)malloc(sizeof(window));
 	if (w == NULL)
 		return NULL;
+	memset((void*) w, 0, sizeof(window));
 
 	w->g = g;
 	w->handle = CreateWindowEx(0, g->className, NULL, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, NULL, NULL, NULL, NULL);
@@ -226,7 +212,7 @@ window* window_new(vinci *g, void* parent, uint32_t width, uint32_t height, wind
 	}
 	
 	if (parent) {
-		SetParent(w->handle, *((HWND *)parent));
+		SetParent(w->handle, (HWND)parent);
 		SetWindowLong(w->handle, GWL_STYLE, GetWindowLong(w->handle, GWL_STYLE) & ~(WS_BORDER | WS_SIZEBOX | WS_DLGFRAME));
 		SetWindowPos(w->handle, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED); // SWP_FRAMECHANGED triggers WndProc call with WM_SIZE right here. May they die hard
 	}
