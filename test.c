@@ -23,22 +23,22 @@
 #include <string.h>
 #include <stdio.h>
 
+#if defined(_WIN32) || defined(__CYGWIN__)
+    #include <windows.h>
+    #define SLEEP(ms) Sleep(ms)
+#else
+    #include <unistd.h>
+    #define SLEEP(ms) usleep(ms * 1000)
+#endif
+
 vinci *g;
 window *w1, *w2;
+char active_windows = 0;
 
 static void on_close(window *w) {
-    printf("on_close %p \n", (void*)w); fflush(stdout);
+	printf("on_close %p \n", (void*)w); fflush(stdout);
 	window_free(w);
-	if (w == w1) {
-    	w1 = NULL;
-		if (!w2)
-			vinci_stop(g);
-	}
-	if (w == w2) {
-		w2 = NULL;
-		if (!w1)
-			vinci_stop(g);
-	}
+	active_windows--;
 }
 
 static void on_mouse_press (window *w, int32_t x, int32_t y, uint32_t state) {
@@ -54,7 +54,11 @@ static void on_mouse_move (window *w, int32_t x, int32_t y, uint32_t state) {
 }
 
 static void on_window_resize (window *w, int32_t width, int32_t height) {
-    printf("on_window_resize %p %d %d \n", (void*) w, width, height);
+	printf("on_window_resize %p %d %d \n", (void*) w, width, height);
+}
+
+static void tick(void) {
+    vinci_idle(g);
 }
 
 int main (void) {
@@ -90,7 +94,12 @@ int main (void) {
 	on_window_resize(w2, window_get_width(w2), window_get_height(w2));
 	window_show(w2);
 
-	vinci_run(g, 0);
+	// I dare you to find a worse timer :)
+	active_windows = 2;
+	while (active_windows > 0) {
+        tick();
+        SLEEP(20);
+    }
 
 	vinci_destroy(g);
 }
