@@ -49,7 +49,6 @@ struct vinci {
 	xcb_atom_t          wm_delete_atom;
 	xcb_atom_t          xembed_info_atom;
 	window             *windows;
-	char                keep_running;
 };
 
 vinci* vinci_new(void) {
@@ -139,20 +138,19 @@ static uint32_t get_mouse_state(uint16_t state, xcb_button_t last) {
 	;
 }
 
-void vinci_run(vinci* g, char single) {
-	g->keep_running = 1;
+void vinci_idle(vinci *g) {
 	xcb_generic_event_t *ev;
 	struct pollfd pfd;
 	pfd.fd = xcb_get_file_descriptor(g->connection);
 	pfd.events = POLLIN;
-	while (g->keep_running) {
-		int err = poll(&pfd, 1, single ? 0 : -1);
+	while (1) {
+		int err = poll(&pfd, 1, 0);
 		if (err == -1)
 			break;
-		else if (err == 0 && single)
+		else if (err == 0)
 			break;
 
-		while (g->keep_running && (ev = xcb_poll_for_event(g->connection))) {
+		while ((ev = xcb_poll_for_event(g->connection))) {
 			switch (ev->response_type & ~0x80) {
 			case XCB_EXPOSE:
 			{
@@ -295,15 +293,10 @@ void vinci_run(vinci* g, char single) {
 	}
 }
 
-void vinci_stop(vinci* g) {
-	g->keep_running = 0;
-}
-
 #define XEMBED_MAPPED (1 << 0)
 
 window* window_new(vinci* g, void* p, uint32_t width, uint32_t height, window_cbs *cbs) {
-	xcb_window_t *parent = (xcb_window_t *) p;
-
+	xcb_window_t parent = (xcb_window_t)(uintptr_t)p;
 	window* ret = (window*) malloc(sizeof(window));
 	if (ret == NULL)
 		return NULL;
@@ -320,7 +313,7 @@ window* window_new(vinci* g, void* p, uint32_t width, uint32_t height, window_cb
 			      | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_MOTION
 			      | XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW
 			      | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE };
-	xcb_create_window(g->connection, 24, ret->window, parent ? *parent : g->screen->root,
+	xcb_create_window(g->connection, 24, ret->window, parent ? parent : g->screen->root,
 			  0, 0, width, height, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
 			  g->visual->visual_id, mask, values);
 	
