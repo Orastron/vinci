@@ -22,6 +22,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #if defined(_WIN32) || defined(__CYGWIN__)
     #include <windows.h>
@@ -30,6 +31,13 @@
     #include <unistd.h>
     #define SLEEP(ms) usleep(ms * 1000)
 #endif
+
+// Function to map float [0,1] to RGB
+static uint32_t floatToRGB(float input) {
+    if (input < 0.0f) input = 0.0f;
+    if (input > 1.0f) input = 1.0f;
+    return (uint32_t)(input * 0xFFFFFF);
+}
 
 vinci *g;
 window *w1, *w2;
@@ -43,18 +51,53 @@ static void on_close(window *w) {
 
 static void on_mouse_press (window *w, int32_t x, int32_t y, uint32_t state) {
 	printf("on_mouse_press %p %d %d %u \n", (void*)w, x, y, state);
+
+	uint32_t side = 50;
+	uint32_t *data = (uint32_t*) malloc(side * side * 4);
+	uint32_t p = 0;
+	for (uint32_t i = 0; i < side; i++)
+		for (uint32_t j = 0; j < side; j++, p++)
+			data[p] = 0xff1122;
+	window_draw(w, (unsigned char*)data, 0, 0, side, side, x - side / 2, y - side / 2, side, side);
+	free(data);
 }
 
 static void on_mouse_release (window *w, int32_t x, int32_t y, uint32_t state) {
 	printf("on_mouse_release %p %d %d %u \n", (void*)w, x, y, state);
+
+	uint32_t side = 20;
+	uint32_t *data = (uint32_t*) malloc(side * side * 4);
+	uint32_t p = 0;
+	for (uint32_t i = 0; i < side; i++)
+		for (uint32_t j = 0; j < side; j++, p++)
+			data[p] = 0x1122ff;
+	window_draw(w, (unsigned char*)data, 0, 0, side, side, x - side / 2, y - side / 2, side, side);
+	free(data);
 }
 
 static void on_mouse_move (window *w, int32_t x, int32_t y, uint32_t state) {
 	printf("on_mouse_move %p %d %d %u \n", (void*)w, x, y, state);
+
+	uint32_t side = 8;
+	uint32_t *data = (uint32_t*) malloc(side * side * 4);
+	uint32_t p = 0;
+	for (uint32_t i = 0; i < side; i++)
+		for (uint32_t j = 0; j < side; j++, p++)
+			data[p] = 0x11ff22;
+	window_draw(w, (unsigned char*)data, 0, 0, side, side, x - side / 2, y - side / 2, side, side);
+	free(data);
 }
 
 static void on_window_resize (window *w, int32_t width, int32_t height) {
 	printf("on_window_resize %p %d %d \n", (void*) w, width, height);
+	uint32_t color = floatToRGB(width > height ? (float) height / (float) width : (float) width / (float) height);
+	uint32_t *data = (uint32_t*) malloc(width * height * 4);
+	uint32_t p = 0;
+	for (int32_t i = 0; i < width; i++)
+		for (int32_t j = 0; j < height; j++, p++)
+			data[p] = color;
+	window_draw(w, (unsigned char*)data, 0, 0, width, height, 0, 0, width, height);
+	free(data);
 }
 
 static void tick(void) {
