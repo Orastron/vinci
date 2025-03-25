@@ -296,15 +296,12 @@ void vinci_idle(vinci *g) {
 #define XEMBED_MAPPED (1 << 0)
 
 window* window_new(vinci* g, void* p, uint32_t width, uint32_t height, window_cbs *cbs) {
-	xcb_window_t parent = (xcb_window_t)(uintptr_t)p;
 	window* ret = (window*) malloc(sizeof(window));
 	if (ret == NULL)
-		return NULL;
+		goto err_alloc;
 	ret->bgra = malloc((width * height) << 2);
-	if (!ret->bgra) {
-		free(ret);
-		return NULL;
-	}
+	if (!ret->bgra)
+		goto err_bgra;
 
 	ret->window = xcb_generate_id(g->connection);
 	uint32_t mask = XCB_CW_EVENT_MASK;
@@ -313,19 +310,25 @@ window* window_new(vinci* g, void* p, uint32_t width, uint32_t height, window_cb
 			      | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_MOTION
 			      | XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW
 			      | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE };
-	xcb_create_window(g->connection, 24, ret->window, parent ? parent : g->screen->root,
+
+	// for some reason jalv.gtk3 doesn't like passing parent here but needs reparenting later
+	xcb_create_window(g->connection, 24, ret->window, g->screen->root,
 			  0, 0, width, height, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
 			  g->visual->visual_id, mask, values);
+	xcb_window_t parent = (xcb_window_t)(uintptr_t)p;
+	if (parent)
+		xcb_reparent_window(g->connection, ret->window, parent, 0, 0);
 	
 	ret->pixmap = xcb_generate_id(g->connection);
 	xcb_create_pixmap(g->connection, g->screen->root_depth, ret->pixmap, ret->window, width, height);
+
 	ret->gc = xcb_generate_id(g->connection);
 	xcb_create_gc(g->connection, ret->gc, ret->pixmap, 0, NULL);
 
 	uint32_t xembed_info[] = { 0, 0 };
 	xcb_change_property(g->connection, XCB_PROP_MODE_REPLACE, ret->window, g->xembed_info_atom, g->xembed_info_atom, 32, 2, xembed_info);
 
-	// Subscribe to window close events
+	// subscribe to window close events
 	xcb_change_property(g->connection, XCB_PROP_MODE_REPLACE, ret->window, g->wm_protocols_atom, XCB_ATOM_ATOM, 32, 1, &(g->wm_delete_atom));
 
 	xcb_flush(g->connection);
@@ -347,8 +350,13 @@ window* window_new(vinci* g, void* p, uint32_t width, uint32_t height, window_cb
 	ret->height = height;
 	ret->data = NULL;
 	ret->cbs = *cbs;
-	
+
 	return ret;
+
+err_bgra:
+	free(ret);
+err_alloc:
+	return NULL;
 }
 
 void window_free(window* w) {
@@ -417,7 +425,7 @@ void window_draw(window* w, unsigned char *data, int32_t dx, int32_t dy, int32_t
 }
 
 void *window_get_handle(window* w) {
-	return &w->window;
+	return (void *)(uintptr_t)(w->window);
 }
 
 uint32_t window_get_width(window* w) {
