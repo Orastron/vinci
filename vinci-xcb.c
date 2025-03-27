@@ -1,7 +1,7 @@
 /*
  * Vinci
  *
- * Copyright (C) 2025 Orastron Srl unipersonale
+ * Copyright (C) 2021-2025 Orastron Srl unipersonale
  *
  * Vinci is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,7 @@
 
 #include <stdlib.h>
 #include <xcb/xcb.h>
-#include <poll.h>
-#include <stdio.h>
+//#include <stdio.h>
 
 struct window {
 	vinci          *g;
@@ -140,156 +139,145 @@ static uint32_t get_mouse_state(uint16_t state, xcb_button_t last) {
 
 void vinci_idle(vinci *g) {
 	xcb_generic_event_t *ev;
-	struct pollfd pfd;
-	pfd.fd = xcb_get_file_descriptor(g->connection);
-	pfd.events = POLLIN;
-	while (1) {
-		int err = poll(&pfd, 1, 0);
-		if (err == -1)
-			break;
-		else if (err == 0)
-			break;
+	while ((ev = xcb_poll_for_event(g->connection))) {
+		switch (ev->response_type & ~0x80) {
+		case XCB_EXPOSE:
+		{
+			xcb_expose_event_t *x = (xcb_expose_event_t *)ev;
+			window* w = get_window(g, x->window);
 
-		while ((ev = xcb_poll_for_event(g->connection))) {
-			switch (ev->response_type & ~0x80) {
-			case XCB_EXPOSE:
-			{
-				xcb_expose_event_t *x = (xcb_expose_event_t *)ev;
-				window* w = get_window(g, x->window);
-	
-				xcb_copy_area(g->connection, w->pixmap, w->window, w->gc, x->x, x->y, x->x, x->y, x->width, x->height);
-				xcb_flush(g->connection);
-			}
-				break;
-	
-			case XCB_CONFIGURE_NOTIFY:
-			{
-				xcb_configure_notify_event_t *x = (xcb_configure_notify_event_t *)ev;
-				window* w = get_window(g, x->window);
-				
-				xcb_translate_coordinates_reply_t *trans =
-					xcb_translate_coordinates_reply(g->connection, xcb_translate_coordinates(g->connection, w->window, g->screen->root, 0, 0), NULL);
-				if (trans) {
-					if (trans->dst_x != w->x || trans->dst_y != w->y) {
-						w->x = trans->dst_x;
-						w->y = trans->dst_y;
-						if (w->cbs.on_window_move)
-							w->cbs.on_window_move(w, trans->dst_x, trans->dst_y);
-					}
-					free(trans);
-				}
-			
-				if (x->width != w->width || x->height != w->height) {
-					w->width = x->width;
-					w->height = x->height;
-					xcb_free_pixmap(g->connection, w->pixmap);
-					w->pixmap = xcb_generate_id(g->connection);
-					xcb_create_pixmap(g->connection, g->screen->root_depth, w->pixmap, w->window, x->width, x->height);
-					w->bgra = (uint8_t*) realloc(w->bgra, (w->width * w->height) << 2);
-
-					if (w->cbs.on_window_resize)
-						w->cbs.on_window_resize(w, x->width, x->height);
-				}
-			}
-				break;
-			
-			case XCB_CLIENT_MESSAGE:
-			{
-				xcb_client_message_event_t *x = (xcb_client_message_event_t *)ev;
-				window* w = get_window(g, x->window);
-				if (w->cbs.on_window_close) {
-					if (x->data.data32[0] == g->wm_delete_atom)
-						w->cbs.on_window_close(w);
-				}
-			}
-				break;
-
-			case XCB_BUTTON_PRESS:
-			{
-				xcb_button_press_event_t *x = (xcb_button_press_event_t *)ev;
-				window* w = get_window(g, x->event);
-				// First three buttons
-				if (w->cbs.on_mouse_press) {
-					if (x->detail <= 3)
-						w->cbs.on_mouse_press(w, x->event_x, x->event_y, get_mouse_state(x->state, x->detail));
-				}
-				// wheel
-				if (w->cbs.on_mouse_wheel) {
-					if (x->detail == 4)
-						w->cbs.on_mouse_wheel(w, x->event_x, x->event_y, 57);
-					else if (x->detail == 5)
-						w->cbs.on_mouse_wheel(w, x->event_x, x->event_y, -57);
-				}
-			}
-				break;
-	
-			case XCB_BUTTON_RELEASE:
-			{
-				xcb_button_release_event_t *x = (xcb_button_release_event_t *)ev;
-				window* w = get_window(g, x->event);
-
-				// First three buttons
-				if (x->detail <= 3) {
-					if (w->cbs.on_mouse_release)
-						w->cbs.on_mouse_release(w, x->event_x, x->event_y, get_mouse_state(x->state, x->detail));
-				}
-				// Mouse wheel
-				else {
-					// Nothing to do
-				}
-			}
-				break;
-	
-			case XCB_MOTION_NOTIFY:
-			{
-				xcb_motion_notify_event_t *x = (xcb_motion_notify_event_t *)ev;
-				window* w = get_window(g, x->event);
-				if (w->cbs.on_mouse_move)
-					w->cbs.on_mouse_move(w, x->event_x, x->event_y, get_mouse_state(x->state, 0));
-			}
-				break;
-				
-			case XCB_ENTER_NOTIFY:
-			{
-				xcb_enter_notify_event_t *x = (xcb_enter_notify_event_t *)ev;
-				window* w = get_window(g, x->event);
-				if (w->cbs.on_mouse_enter)
-					w->cbs.on_mouse_enter(w, x->event_x, x->event_y, get_mouse_state(x->state, 0));
-			}
-				break;
-
-			case XCB_LEAVE_NOTIFY:
-			{
-				xcb_leave_notify_event_t *x = (xcb_leave_notify_event_t *)ev;
-				window* w = get_window(g, x->event);
-				if (w->cbs.on_mouse_leave)
-					w->cbs.on_mouse_leave(w, x->event_x, x->event_y, get_mouse_state(x->state, 0));
-			}
-				break;
-	
-			case XCB_KEY_PRESS:
-			{
-				xcb_key_press_event_t *x = (xcb_key_press_event_t *)ev;
-				window* w = get_window(g, x->event);
-				if (w->cbs.on_key_press)
-					w->cbs.on_key_press(w, x->detail, x->state);
-			}
-				break;
-	
-			case XCB_KEY_RELEASE:
-			{
-				xcb_key_release_event_t *x = (xcb_key_release_event_t *)ev;
-				window* w = get_window(g, x->event);
-				if (w->cbs.on_key_release)
-					w->cbs.on_key_release(w, x->detail, x->state);
-			}
-				break;
-	
-			default:
-				break;
-			}
-			free(ev);
+			xcb_copy_area(g->connection, w->pixmap, w->window, w->gc, x->x, x->y, x->x, x->y, x->width, x->height);
+			xcb_flush(g->connection);
 		}
+			break;
+
+		case XCB_CONFIGURE_NOTIFY:
+		{
+			xcb_configure_notify_event_t *x = (xcb_configure_notify_event_t *)ev;
+			window* w = get_window(g, x->window);
+			
+			xcb_translate_coordinates_reply_t *trans =
+				xcb_translate_coordinates_reply(g->connection, xcb_translate_coordinates(g->connection, w->window, g->screen->root, 0, 0), NULL);
+			if (trans) {
+				if (trans->dst_x != w->x || trans->dst_y != w->y) {
+					w->x = trans->dst_x;
+					w->y = trans->dst_y;
+					if (w->cbs.on_window_move)
+						w->cbs.on_window_move(w, trans->dst_x, trans->dst_y);
+				}
+				free(trans);
+			}
+		
+			if (x->width != w->width || x->height != w->height) {
+				w->width = x->width;
+				w->height = x->height;
+				xcb_free_pixmap(g->connection, w->pixmap);
+				w->pixmap = xcb_generate_id(g->connection);
+				xcb_create_pixmap(g->connection, g->screen->root_depth, w->pixmap, w->window, x->width, x->height);
+				w->bgra = (uint8_t*) realloc(w->bgra, (w->width * w->height) << 2);
+
+				if (w->cbs.on_window_resize)
+					w->cbs.on_window_resize(w, x->width, x->height);
+			}
+		}
+			break;
+
+		case XCB_CLIENT_MESSAGE:
+		{
+			xcb_client_message_event_t *x = (xcb_client_message_event_t *)ev;
+			window* w = get_window(g, x->window);
+			if (w->cbs.on_window_close) {
+				if (x->data.data32[0] == g->wm_delete_atom)
+					w->cbs.on_window_close(w);
+			}
+		}
+			break;
+
+		case XCB_BUTTON_PRESS:
+		{
+			xcb_button_press_event_t *x = (xcb_button_press_event_t *)ev;
+			window* w = get_window(g, x->event);
+			// First three buttons
+			if (w->cbs.on_mouse_press) {
+				if (x->detail <= 3)
+					w->cbs.on_mouse_press(w, x->event_x, x->event_y, get_mouse_state(x->state, x->detail));
+			}
+			// wheel
+			if (w->cbs.on_mouse_wheel) {
+				if (x->detail == 4)
+					w->cbs.on_mouse_wheel(w, x->event_x, x->event_y, 57);
+				else if (x->detail == 5)
+					w->cbs.on_mouse_wheel(w, x->event_x, x->event_y, -57);
+			}
+		}
+			break;
+
+		case XCB_BUTTON_RELEASE:
+		{
+			xcb_button_release_event_t *x = (xcb_button_release_event_t *)ev;
+			window* w = get_window(g, x->event);
+
+			// First three buttons
+			if (x->detail <= 3) {
+				if (w->cbs.on_mouse_release)
+					w->cbs.on_mouse_release(w, x->event_x, x->event_y, get_mouse_state(x->state, x->detail));
+			}
+			// Mouse wheel
+			else {
+				// Nothing to do
+			}
+		}
+			break;
+
+		case XCB_MOTION_NOTIFY:
+		{
+			xcb_motion_notify_event_t *x = (xcb_motion_notify_event_t *)ev;
+			window* w = get_window(g, x->event);
+			if (w->cbs.on_mouse_move)
+				w->cbs.on_mouse_move(w, x->event_x, x->event_y, get_mouse_state(x->state, 0));
+		}
+			break;
+
+		case XCB_ENTER_NOTIFY:
+		{
+			xcb_enter_notify_event_t *x = (xcb_enter_notify_event_t *)ev;
+			window* w = get_window(g, x->event);
+			if (w->cbs.on_mouse_enter)
+				w->cbs.on_mouse_enter(w, x->event_x, x->event_y, get_mouse_state(x->state, 0));
+		}
+			break;
+
+		case XCB_LEAVE_NOTIFY:
+		{
+			xcb_leave_notify_event_t *x = (xcb_leave_notify_event_t *)ev;
+			window* w = get_window(g, x->event);
+			if (w->cbs.on_mouse_leave)
+				w->cbs.on_mouse_leave(w, x->event_x, x->event_y, get_mouse_state(x->state, 0));
+		}
+			break;
+
+		case XCB_KEY_PRESS:
+		{
+			xcb_key_press_event_t *x = (xcb_key_press_event_t *)ev;
+			window* w = get_window(g, x->event);
+			if (w->cbs.on_key_press)
+				w->cbs.on_key_press(w, x->detail, x->state);
+		}
+			break;
+
+		case XCB_KEY_RELEASE:
+		{
+			xcb_key_release_event_t *x = (xcb_key_release_event_t *)ev;
+			window* w = get_window(g, x->event);
+			if (w->cbs.on_key_release)
+				w->cbs.on_key_release(w, x->detail, x->state);
+		}
+			break;
+
+		default:
+			break;
+		}
+		free(ev);
 	}
 }
 
