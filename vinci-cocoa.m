@@ -359,7 +359,7 @@ void window_draw(window *w, unsigned char *img, int32_t dx, int32_t dy, int32_t 
 	);
 
 	CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
-	CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault;
+	CGBitmapInfo bitmapInfo = kCGBitmapByteOrderDefault | kCGImageAlphaNoneSkipLast;
 	CGColorRenderingIntent renderingIntent = kCGRenderingIntentDefault;
 
 	CGImageRef imageRef = CGImageCreate(
