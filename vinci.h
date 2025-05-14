@@ -21,6 +21,9 @@
 
 #ifndef VINCI_H
 #define VINCI_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdint.h>
 
@@ -58,4 +61,7 @@ void     window_hide      (window *w);
 void     window_set_data  (window *w, void *data);
 void*    window_get_data  (window *w);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
