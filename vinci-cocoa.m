@@ -23,6 +23,12 @@
 #include <stdint.h>
 #import <Cocoa/Cocoa.h>
 
+#if __has_feature(objc_arc)
+#define _OBJC_RELEASE(obj) { obj = nil; }
+#else
+#define _OBJC_RELEASE(obj) { [obj release]; obj = nil; }
+#endif
+
 @interface VinciView : NSView
 {
 	NSTrackingArea *tracking;
@@ -40,7 +46,6 @@
 struct vinci {
 	window            *windows;
 	NSApplication     *app;
-	NSAutoreleasePool *pool;
 	char               standalone; // If any view has a parent, it is not standalone
 };
 
@@ -79,7 +84,7 @@ static uint32_t get_mouse_state(NSEvent* e) {
 - (void) removeTrackingArea {
 	if (tracking) {
 		[super removeTrackingArea:tracking];
-		[tracking release];
+		_OBJC_RELEASE(tracking);
 		tracking = 0;
 	}
 }
@@ -230,7 +235,6 @@ vinci* vinci_new(void) {
 	if (g == NULL)
 		return NULL;
 	g->windows = NULL;
-	g->pool = [[NSAutoreleasePool alloc] init];
 	g->app = [NSApplication sharedApplication];
 	//[g->app setActivationPolicy:NSApplicationActivationPolicyRegular]; // TODO: check if this is a problem when not standalone
 	g->standalone = 1;
@@ -277,8 +281,8 @@ window* window_new(vinci *g, void *parent, uint32_t width, uint32_t height, wind
 	ret->controller = controller;
 
 	if (parent) {
-		[((NSView*)parent) addSubview:view positioned:NSWindowAbove relativeTo:nil];
-		ret->nswindow = [(NSView*)parent window];
+		[((__bridge NSView*)parent) addSubview:view positioned:NSWindowAbove relativeTo:nil];
+		ret->nswindow = [(__bridge NSView*)parent window];
 		g->standalone = 0;
 	}
 	else {
@@ -302,7 +306,7 @@ window* window_new(vinci *g, void *parent, uint32_t width, uint32_t height, wind
 	ret->next    = NULL;
 	ret->cbs     = *cbs;
 
-	[view autorelease];
+	_OBJC_RELEASE(view);
 
 	if (g->windows == NULL)
 		g->windows = ret;
@@ -377,7 +381,7 @@ void window_draw(window *w, unsigned char *img, int32_t dx, int32_t dy, int32_t 
 	);
 
 	NSImage* image = [[NSImage alloc] initWithCGImage: imageRef size:NSZeroSize];
-	[w->nsImage release];
+	_OBJC_RELEASE(w->nsImage);
 	w->nsImage = image;
 
 	[w->view setNeedsDisplayInRect:NSMakeRect(wx, size.height - (wy + height), width, height)];
@@ -403,7 +407,7 @@ void window_move(window *w, uint32_t x, uint32_t y) {
 }
 
 void* window_get_handle(window *w) {
-	return w->view;
+	return (__bridge void *)(w->view);
 }
 
 uint32_t window_get_width(window *w) {
