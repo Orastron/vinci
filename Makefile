@@ -1,3 +1,23 @@
+#
+# Vinci
+#
+# Copyright (C) 2025 Orastron Srl unipersonale
+#
+# Vinci is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3 of the License.
+#
+# Vinci is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Vinci.  If not, see <http://www.gnu.org/licenses/>.
+#
+# File author: Paolo Marrone
+#
+
 UNAME := $(shell uname -o)
 
 ifeq ($(UNAME),GNU/Linux)
