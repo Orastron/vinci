@@ -284,6 +284,12 @@ void vinci_idle(vinci *g) {
 #define XEMBED_MAPPED (1 << 0)
 
 window* window_new(vinci* g, void* p, uint32_t width, uint32_t height, window_cbs *cbs) {
+	// make C++ compilers happy
+	uint32_t mask;
+	uint32_t values[1];
+	xcb_window_t parent;
+	uint32_t xembed_info[2];
+
 	window* ret = (window*) malloc(sizeof(window));
 	if (ret == NULL)
 		goto err_alloc;
@@ -292,18 +298,18 @@ window* window_new(vinci* g, void* p, uint32_t width, uint32_t height, window_cb
 		goto err_bgra;
 
 	ret->window = xcb_generate_id(g->connection);
-	uint32_t mask = XCB_CW_EVENT_MASK;
-	uint32_t values[] = { XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY
-			      | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE
-			      | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_MOTION
-			      | XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW
-			      | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE };
+	mask = XCB_CW_EVENT_MASK;
+	values[0] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY
+		    | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE
+		    | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_MOTION
+		    | XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW
+		    | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE;
 
 	// for some reason jalv.gtk3 doesn't like passing parent here but needs reparenting later
 	xcb_create_window(g->connection, 24, ret->window, g->screen->root,
 			  0, 0, width, height, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
 			  g->visual->visual_id, mask, values);
-	xcb_window_t parent = (xcb_window_t)(uintptr_t)p;
+	parent = (xcb_window_t)(uintptr_t)p;
 	if (parent)
 		xcb_reparent_window(g->connection, ret->window, parent, 0, 0);
 	
@@ -313,7 +319,8 @@ window* window_new(vinci* g, void* p, uint32_t width, uint32_t height, window_cb
 	ret->gc = xcb_generate_id(g->connection);
 	xcb_create_gc(g->connection, ret->gc, ret->pixmap, 0, NULL);
 
-	uint32_t xembed_info[] = { 0, 0 };
+	xembed_info[0] = 0;
+	xembed_info[1] = 0;
 	xcb_change_property(g->connection, XCB_PROP_MODE_REPLACE, ret->window, g->xembed_info_atom, g->xembed_info_atom, 32, 2, xembed_info);
 
 	// subscribe to window close events
