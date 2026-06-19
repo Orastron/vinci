@@ -189,7 +189,7 @@ window* window_new(vinci *g, void* parent, uint32_t width, uint32_t height, char
 	memset((void*) w, 0, sizeof(window));
 
 	w->g = g;
-	w->handle = CreateWindowEx(0, g->className, NULL, WS_OVERLAPPEDWINDOW | (visible ? 0 : WS_VISIBLE), CW_USEDEFAULT, CW_USEDEFAULT, width, height, NULL, NULL, NULL, NULL);
+	w->handle = CreateWindowEx(0, g->className, NULL, WS_OVERLAPPEDWINDOW | (visible ? WS_VISIBLE : 0), CW_USEDEFAULT, CW_USEDEFAULT, width, height, NULL, NULL, NULL, NULL);
 	if (w->handle == NULL) {
 		free(w);
 		return NULL;
