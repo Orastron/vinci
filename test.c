@@ -1,7 +1,7 @@
 /*
  * Vinci
  *
- * Copyright (C) 2025 Orastron Srl unipersonale
+ * Copyright (C) 2025, 2026 Orastron Srl unipersonale
  *
  * Vinci is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Vinci. If not, see <http://www.gnu.org/licenses/>.
  *
- * File author: Paolo Marrone
+ * File author: Paolo Marrone, Stefano D'Angelo
  */
 
 #define _XOPEN_SOURCE   600
@@ -122,9 +122,8 @@ int main (void) {
 	w1cbs.on_mouse_move    = on_mouse_move;
 	w1cbs.on_window_resize = on_window_resize;
 
-	w1 = window_new(g, NULL, 300, 500, &w1cbs);
+	w1 = window_new(g, NULL, 300, 500, 1, &w1cbs);
 	on_window_resize(w1, window_get_width(w1), window_get_height(w1)); // This is needed for x only
-	window_show(w1);
 
 	// w2
 
@@ -136,9 +135,8 @@ int main (void) {
 	w2cbs.on_mouse_move    = on_mouse_move;
 	w2cbs.on_window_resize = on_window_resize;
 
-	w2 = window_new(g, NULL, 500, 500, &w2cbs);
+	w2 = window_new(g, NULL, 500, 500, 1, &w2cbs);
 	on_window_resize(w2, window_get_width(w2), window_get_height(w2));
-	window_show(w2);
 
 	// I dare you to find a worse timer :)
 	active_windows = 2;

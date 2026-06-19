@@ -1,7 +1,7 @@
 /*
  * Vinci
  *
- * Copyright (C) 2021-2025 Orastron Srl unipersonale
+ * Copyright (C) 2021-2026 Orastron Srl unipersonale
  *
  * Vinci is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -182,14 +182,14 @@ void vinci_idle(vinci *g) {
 	}
 }
 
-window* window_new(vinci *g, void* parent, uint32_t width, uint32_t height, window_cbs *cbs) {
+window* window_new(vinci *g, void* parent, uint32_t width, uint32_t height, char visible, window_cbs *cbs) {
 	window *w = (window*)malloc(sizeof(window));
 	if (w == NULL)
 		return NULL;
 	memset((void*) w, 0, sizeof(window));
 
 	w->g = g;
-	w->handle = CreateWindowEx(0, g->className, NULL, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, NULL, NULL, NULL, NULL);
+	w->handle = CreateWindowEx(0, g->className, NULL, WS_OVERLAPPEDWINDOW | (visible ? 0 : WS_VISIBLE), CW_USEDEFAULT, CW_USEDEFAULT, width, height, NULL, NULL, NULL, NULL);
 	if (w->handle == NULL) {
 		free(w);
 		return NULL;

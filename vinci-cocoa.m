@@ -1,7 +1,7 @@
 /*
  * Vinci
  *
- * Copyright (C) 2022-2025 Orastron Srl unipersonale
+ * Copyright (C) 2022-2026 Orastron Srl unipersonale
  *
  * Vinci is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Vinci. If not, see <http://www.gnu.org/licenses/>.
  *
- * File author: Paolo Marrone
+ * File author: Paolo Marrone, Stefano D'Angelo
  */
 
 #include "vinci.h"
@@ -262,7 +262,7 @@ void vinci_idle(vinci *g) {
 	}
 }
 
-window* window_new(vinci *g, void *parent, uint32_t width, uint32_t height, window_cbs *cbs) { 
+window* window_new(vinci *g, void *parent, uint32_t width, uint32_t height, char visible, window_cbs *cbs) { 
 
 	window *ret = (window*) malloc(sizeof(window));
 	if (ret == NULL)
@@ -316,6 +316,9 @@ window* window_new(vinci *g, void *parent, uint32_t width, uint32_t height, wind
 			cur = cur->next;
 		cur->next = ret;
 	}
+
+	if (visible)
+		[ret->nswindow setIsVisible:YES];
 
 	return ret;
 }
