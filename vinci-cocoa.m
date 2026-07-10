@@ -60,6 +60,7 @@ struct window {
 	void                *data;
 	window_cbs           cbs;
 	NSRect               default_frame;
+	char                 closed;
 };
 
 static uint32_t get_mouse_state(NSEvent* e) {
@@ -199,15 +200,19 @@ static uint32_t get_mouse_state(NSEvent* e) {
 - (void)removeFromSuperview {
 	[super removeFromSuperview];
 	window *w = self->win;
-	if (w->cbs.on_window_close)
+	if (w && w->cbs.on_window_close) {
 		w->cbs.on_window_close(w);
+		w->closed = 1;
+	}
 }
 
 // Custom method for standalone application
 - (void)windowWillClose:(NSNotification *)notification {
 	window *w = self->win;
-	if (w->cbs.on_window_close)
+	if (w->cbs.on_window_close) {
 		w->cbs.on_window_close(w);
+		w->closed = 1;
+	}
 }
 
 - (void) drawRect:(NSRect) r {
@@ -269,6 +274,7 @@ window* window_new(vinci *g, void *parent, uint32_t width, uint32_t height, char
 		return NULL;
   
 	ret->default_frame = NSMakeRect(0, 0, width, height);
+	ret->closed = 0;
 
 	VinciViewController *controller = [[VinciViewController alloc] init];
 	controller->win = ret;
@@ -306,7 +312,6 @@ window* window_new(vinci *g, void *parent, uint32_t width, uint32_t height, char
 	ret->next    = NULL;
 	ret->cbs     = *cbs;
 
-	_OBJC_RELEASE(view);
 
 	if (g->windows == NULL)
 		g->windows = ret;
@@ -324,6 +329,9 @@ window* window_new(vinci *g, void *parent, uint32_t width, uint32_t height, char
 }
 
 void window_free(window *w) {
+	if (!w->closed && w->cbs.on_window_close)
+		w->cbs.on_window_close(w);
+
 	if (w->g->windows == w) {
 		w->g->windows = w->next;
 	}
@@ -337,6 +345,7 @@ void window_free(window *w) {
 	}
 
 	[w->view removeTrackingArea];
+	w->view->win = nil;
 	free(w->img);
 	free(w);
 }
