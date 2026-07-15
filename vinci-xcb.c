@@ -379,12 +379,11 @@ void window_free(window* w) {
 }
 
 void window_draw(window* w, unsigned char *data, int32_t dx, int32_t dy, int32_t dw, int32_t dh, int32_t wx, int32_t wy, int32_t width, int32_t height) {
-
 	const int32_t wx_ = wx < 0 ? 0 : wx;
 	const int32_t wy_ = wy < 0 ? 0 : wy;
 	width  = width  - (wx_ - wx);
 	height = height - (wy_ - wy);
-	if (width <= 0 || height <= 0 )
+	if (width <= 0 || height <= 0)
 		return;
 	dx = dx + (wx_ - wx);
 	dy = dy + (wy_ - wy);

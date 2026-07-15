@@ -35,7 +35,6 @@
     #define SLEEP(ms) usleep(ms * 1000)
 #endif
 
-// Function to map float [0,1] to RGB
 static uint32_t floatToRGB(float input) {
     if (input < 0.0f) input = 0.0f;
     if (input > 1.0f) input = 1.0f;
@@ -97,8 +96,9 @@ static void on_window_resize (window *w, int32_t width, int32_t height) {
 	uint32_t *data = (uint32_t*) malloc(width * height * 4);
 	uint32_t p = 0;
 	for (int32_t i = 0; i < width; i++)
-		for (int32_t j = 0; j < height; j++, p++)
+		for (int32_t j = 0; j < height; j++, p++) {
 			data[p] = color;
+		}
 	window_draw(w, (unsigned char*)data, 0, 0, width, height, 0, 0, width, height);
 	free(data);
 }
