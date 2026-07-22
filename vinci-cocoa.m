@@ -116,9 +116,10 @@ void vinci_idle(vinci * g) {
 		cbs->on_window_move(handle, newOrigin.x, newOrigin.y);
 }
 
+// TODO: this could be optimized by keeping a CGImage around repainting the dirty region etc.
 - (void)drawRect:(NSRect)dirtyRect {
     [super drawRect:dirtyRect];
-	
+
     if (!fb)
 		return;
 
@@ -143,7 +144,7 @@ void vinci_idle(vinci * g) {
     CGImageRef dirtyImage = CGImageCreateWithImageInRect(fullImage, dirtyRect);
     CGImageRelease(fullImage);
 
-    CGContextDrawImage(ctx, dirtyRect, dirtyImage);
+	CGContextDrawImage(ctx, NSRectToCGRect(self.bounds), fullImage);
 
     CGImageRelease(dirtyImage);
 }
